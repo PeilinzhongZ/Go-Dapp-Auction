@@ -9,23 +9,25 @@ import (
 	"strconv"
 )
 
-type item struct {
+type Item struct {
+	Auctioneer  int
+	ID          int
 	Name        string
 	Description string
 	Price       int
 	End         int64
 }
 
-type auctioneer struct {
+type Auctioneer struct {
 	ID      int
 	Address string
 	ItemNum int
 }
 
-func (A *auctioneer) PostItem(it item) {
+func (A *Auctioneer) PostItem(it Item) {
 	A.ItemNum = A.ItemNum + 1
 	var mpt p1.MerklePatriciaTrie
-	mpt.Insert("Type", "Item")
+	mpt.Insert("Type", "ItemInfo")
 	mpt.Insert("Auctioneer", strconv.Itoa(A.ID))
 	mpt.Insert("ID", strconv.Itoa(A.ItemNum))
 	mpt.Insert("Name", it.Name)
