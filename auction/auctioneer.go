@@ -2,16 +2,19 @@ package auction
 
 import (
 	"../p1"
-	"bytes"
 	"encoding/json"
-	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 )
 
 type Item struct {
-	Auctioneer  int
-	ID          int
+	Auctioneer int
+	ID         int
+	Detail     ItemDetail
+}
+
+type ItemDetail struct {
 	Name        string
 	Description string
 	Price       int
@@ -24,23 +27,23 @@ type Auctioneer struct {
 	ItemNum int
 }
 
-func (A *Auctioneer) PostItem(it Item) {
-	A.ItemNum = A.ItemNum + 1
+func (A *Auctioneer) PostItem(r *http.Request) (p1.MerklePatriciaTrie, error) {
+	body, err := ioutil.ReadAll(r.Body)
 	var mpt p1.MerklePatriciaTrie
+	defer r.Body.Close()
+	if err != nil {
+		return mpt, err
+	}
+	var itemInfo ItemDetail
+	if err := json.Unmarshal(body, &itemInfo); err != nil {
+		return mpt, err
+	}
 	mpt.Insert("Type", "ItemInfo")
 	mpt.Insert("Auctioneer", strconv.Itoa(A.ID))
 	mpt.Insert("ID", strconv.Itoa(A.ItemNum))
-	mpt.Insert("Name", it.Name)
-	mpt.Insert("Description", it.Description)
-	mpt.Insert("Price", strconv.Itoa(it.Price))
-	mpt.Insert("End", strconv.FormatInt(it.End, 16))
-	mptJSON, err := json.Marshal(mpt)
-	if err != nil {
-		// handle error
-	}
-	body := bytes.NewBuffer(mptJSON)
-	_, err = http.Post(A.Address+"/post", "application/json", body)
-	if err != nil {
-		fmt.Println("Post Failed!")
-	}
+	mpt.Insert("Name", itemInfo.Name)
+	mpt.Insert("Description", itemInfo.Description)
+	mpt.Insert("Price", strconv.Itoa(itemInfo.Price))
+	mpt.Insert("End", strconv.FormatInt(itemInfo.End, 16))
+	return mpt, nil
 }

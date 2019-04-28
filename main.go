@@ -1,36 +1,21 @@
 package main
 
 import (
-	"./p3"
-	"fmt"
-	// "log"
 	// "./auction"
+	"./p3"
+	// "fmt"
+	"log"
 	"net/http"
 	"os"
+	// "strconv"
+	// "time"
 )
 
 func main() {
 	router := p3.NewRouter()
 	if len(os.Args) > 1 {
-		go http.ListenAndServe(":"+os.Args[1], router)
-		_, err := http.Get("http://localhost:" + os.Args[1] + "/start")
-		if err != nil {
-			fmt.Println("Failed")
-			return
-		}
-		// test
-		// A := auction.auctioneer{6687, "http://localhost:6687", 1}
-		// A.PostItem(auction.item{"a", "b", 1, int64(1)})
+		log.Fatal(http.ListenAndServe(":"+os.Args[1], router))
 	} else {
-		go http.ListenAndServe(":6686", router)
-		_, err := http.Get("http://localhost:6686/start?first=true")
-		if err != nil {
-			fmt.Println("Failed")
-			return
-		}
+		log.Fatal(http.ListenAndServe(":6686", router))
 	}
-	// for true {
-
-	// }
-	// start server
 }

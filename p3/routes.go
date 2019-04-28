@@ -58,6 +58,12 @@ var routes = Routes{
 		"Post",
 		"POST",
 		"/post",
-		StartTryingNonces,
+		PostItem,
+	},
+	Route{
+		"ListItem",
+		"GET",
+		"/listItem",
+		ListItems,
 	},
 }

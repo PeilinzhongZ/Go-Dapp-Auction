@@ -1,19 +1,14 @@
 package auction
 
 import (
-	"../p2"
-	// "bytes"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"net/http"
+	"../p1"
 	"strconv"
 	"time"
 )
 
 type ItemData struct {
-	It    Item
-	Trans []Transaction
+	Iteminfo Item
+	Trans    []Transaction
 }
 
 type Transaction struct {
@@ -25,67 +20,42 @@ type Bidder struct {
 	Address string
 }
 
-func (B *Bidder) Items() {
-	resp, err := http.Get(B.Address + "/canonical")
-	if err != nil {
-		fmt.Println("Server failed")
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("Read failed")
-	}
-	var chains [][]string
-	if err := json.Unmarshal(body, &chains); err != nil {
-		fmt.Println("Parse failed")
-	}
-
-	for _, chian := range chains {
-		parseChain(chian)
-	}
-}
-
-func parseChain(chain []string) {
-	timeNow := time.Now().Unix()
-	itemsData := make(map[string]ItemData)
-	for i := len(chain); i > 0; i-- {
-		blockString := chain[i-1]
-		var block p2.Block
-		if err := json.Unmarshal([]byte(blockString), &block); err != nil {
-			fmt.Println("Parse JSON failed")
-			break
+func (B *Bidder) ParseItemsData(chainsData [][]p1.MerklePatriciaTrie) []map[string]ItemData {
+	var itemDataList []map[string]ItemData
+	for _, chainData := range chainsData {
+		itemsData := make(map[string]ItemData)
+		timeNow := time.Now().Unix()
+		for i := len(chainData) - 1; i > 0; i-- {
+			mpt := chainData[i-1]
+			parseMptData(mpt, itemsData, timeNow)
 		}
-		parseBlockData(block, itemsData, timeNow)
+		itemDataList = append(itemDataList, itemsData)
 	}
-	printChain(itemsData)
+	return itemDataList
 }
 
-func parseBlockData(block p2.Block, itemsData map[string]ItemData, timeNow int64) {
-	if typeName, err := block.Value.Get("Type"); err == nil {
+func parseMptData(mpt p1.MerklePatriciaTrie, itemsData map[string]ItemData, timeNow int64) {
+	if typeName, err := mpt.Get("Type"); err == nil {
 		if typeName == "ItemInfo" {
-			if endString, err := block.Value.Get("End"); err == nil {
+			if endString, err := mpt.Get("End"); err == nil {
 				if end, err := strconv.ParseInt(endString, 16, 64); err == nil {
-					if end > timeNow {
-						aucIDString, _ := block.Value.Get("Auctioneer")
-						aucID, _ := strconv.Atoi(aucIDString)
-						IDString, _ := block.Value.Get("ID")
-						ID, _ := strconv.Atoi(IDString)
-						name, _ := block.Value.Get("Name")
-						desciption, _ := block.Value.Get("Description")
-						priceString, _ := block.Value.Get("Price")
-						price, _ := strconv.Atoi(priceString)
-						var transactions []Transaction
-						itemData := ItemData{Item{aucID, ID, name, desciption, price, end}, transactions}
-						itemsData[aucIDString+"--"+IDString] = itemData
-					}
+					// if end > timeNow {
+					aucIDString, _ := mpt.Get("Auctioneer")
+					aucID, _ := strconv.Atoi(aucIDString)
+					IDString, _ := mpt.Get("ID")
+					ID, _ := strconv.Atoi(IDString)
+					name, _ := mpt.Get("Name")
+					desciption, _ := mpt.Get("Description")
+					priceString, _ := mpt.Get("Price")
+					price, _ := strconv.Atoi(priceString)
+					var transactions []Transaction
+					itemData := ItemData{Item{aucID, ID, ItemDetail{name, desciption, price, end}}, transactions}
+					itemsData[aucIDString+"-"+IDString] = itemData
+					// }
 				}
 			}
 		} else if typeName == "Transcation" {
 
 		}
 	}
-}
-
-func printChain(itemsData map[string]ItemData) {
-
 }

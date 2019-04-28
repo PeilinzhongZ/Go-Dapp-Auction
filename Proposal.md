@@ -8,8 +8,8 @@ Auctioneer may lie about which bidder provide hightest price for this auction. W
 
 ## How?
 - Auctioneer can post the information about the item to blockchain, such as description and starting price, etc. Also Auctioneer also can based on transactions to determine the winner of this auction.
-- Bidder can post their price to minner. Also they can review the recent transcation of the auction and check the auctioneer determine winner correctlly.
-- Minner would create block with transaction based on the price minner posted. And Minner can get reward from the each payment and service fee from bidder.
+- Bidder can post their price to miner. Also they can review the recent transcation of the auction and check the auctioneer determine winner correctlly.
+- Miner would create block with transaction based on the price miner posted. And Miner can get reward from the each payment and service fee from bidder.
 
 ## Functionalities
 ### Auctioneer
@@ -20,12 +20,12 @@ Auctioneer may lie about which bidder provide hightest price for this auction. W
 ### Bidder
 1. Find all auction available (before end time) in blockchain.
     > Midpoint--before 04/26
-2. Post price for specific auction to minner. 
+2. Post price for specific auction to miner.
     > Midpoint--before 05/01
 3. Check specific auction transaction
 4. Check if the winner of specific auction is valid.
 
-### Minner
+### Miner
 1. Creat block based on provided price of bidder.
 
 ## Success

@@ -11,8 +11,10 @@ import (
 	"golang.org/x/crypto/sha3"
 	// "github.com/gorilla/mux"
 	// "io"
+	"../auction"
 	"bytes"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -33,6 +35,9 @@ var SBC data.SyncBlockChain
 var Peers data.PeerList
 var ifStarted bool
 
+var auctioneer auction.Auctioneer
+var bidder auction.Bidder
+
 func initial() {
 	// This function will be executed before everything else.
 	// Do some initialization here.
@@ -49,11 +54,6 @@ func Start(w http.ResponseWriter, r *http.Request) {
 			id = int32(id64)
 		}
 		initial()
-		// id, err := Register()
-		// if err != nil {
-		// 	fmt.Fprintf(w, "Register error")
-		// 	return
-		// }
 		Peers = data.NewPeerList(id, PEERS_SIZE)
 		first, ok := r.URL.Query()["first"]
 		if ok && first[0] == "true" {
@@ -76,8 +76,9 @@ func Start(w http.ResponseWriter, r *http.Request) {
 			SBC.UpdateEntireBlockChain(blockChainJSON)
 		}
 		rand.Seed(time.Now().UnixNano())
-		StartHeartBeat()
-		// StartTryingNonces()
+		auctioneer = auction.Auctioneer{int(id), SELF_ADDR, 1}
+		bidder = auction.Bidder{int(id), SELF_ADDR}
+		go StartHeartBeat()
 		ifStarted = true
 	}
 }
@@ -160,6 +161,7 @@ func UploadPeerMap(w http.ResponseWriter, r *http.Request) {
 func Upload(w http.ResponseWriter, r *http.Request) {
 	blockChainJson, err := SBC.BlockChainToJson()
 	if err != nil {
+		fmt.Println(err)
 		return
 	}
 	fmt.Fprint(w, blockChainJson)
@@ -187,11 +189,13 @@ func HeartBeatReceive(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	if err != nil {
 		// handle error
+		fmt.Println(err)
 		return
 	}
 	var heartBeat data.HeartBeatData
 	if err := json.Unmarshal(body, &heartBeat); err != nil {
 		// handle error
+		fmt.Println(err)
 		return
 	}
 	Peers.Add(heartBeat.Addr, heartBeat.Id)
@@ -266,60 +270,60 @@ func CheckNonce(block p2.Block) bool {
 
 func ForwardHeartBeat(heartBeatData data.HeartBeatData) {
 	list := Peers.Copy()
+	heartBeatJSON, err := json.Marshal(heartBeatData)
+	if err != nil {
+		// handle error
+		panic(err)
+	}
 	for addr := range list {
 		go func(addr string) {
-			heartBeatJSON, err := json.Marshal(heartBeatData)
-			if err != nil {
-				// handle error
-			}
 			body := bytes.NewBuffer(heartBeatJSON)
 			_, err = http.Post(addr+"/heartbeat/receive", "application/json", body)
 			if err != nil {
 				// handle error
+				fmt.Println(err)
 			}
 		}(addr)
 	}
 }
 
 func StartHeartBeat() {
-	go func() {
-		for range time.Tick(time.Second * 10) {
-			list := Peers.Copy()
-			str, err := Peers.PeerMapToJson()
-			if err != nil {
-				str = ""
-			}
-			heartBeatData := data.PrepareHeartBeatData(&SBC, Peers.GetSelfId(), str, SELF_ADDR)
-			heartBeatJSON, err := json.Marshal(heartBeatData)
-			if err != nil {
-				// handle error
-			}
-			body := bytes.NewBuffer(heartBeatJSON)
-			for addr := range list {
-				go func(addr string) {
-					_, err = http.Post(addr+"/heartbeat/receive", "application/json", body)
-					if err != nil {
-						// handle error
-						Peers.Delete(addr)
-					}
-				}(addr)
-			}
+	for range time.Tick(time.Second * 5) {
+		list := Peers.Copy()
+		str, err := Peers.PeerMapToJson()
+		if err != nil {
+			log.Println(err)
+			str = ""
 		}
-	}()
+		heartBeatData := data.PrepareHeartBeatData(&SBC, Peers.GetSelfId(), str, SELF_ADDR)
+		heartBeatJSON, err := json.Marshal(heartBeatData)
+		if err != nil {
+			log.Println(err)
+		}
+		for addr := range list {
+			go func(addr string) {
+				body := bytes.NewBuffer(heartBeatJSON)
+				_, err = http.Post(addr+"/heartbeat/receive", "application/json", body)
+				if err != nil {
+					log.Println(err)
+					Peers.Delete(addr)
+				}
+			}(addr)
+		}
+	}
 }
 
-func StartTryingNonces(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
+func PostItem(w http.ResponseWriter, r *http.Request) {
+	mpt, err := auctioneer.PostItem(r)
 	if err != nil {
-		// handle error
+		log.Println(err)
 		return
 	}
-	var mpt p1.MerklePatriciaTrie
-	if err := json.Unmarshal(body, &mpt); err != nil {
-		// handle error
-		return
-	}
+	auctioneer.ItemNum++
+	go StartTryingNonces(mpt)
+}
+
+func StartTryingNonces(mpt p1.MerklePatriciaTrie) {
 	success := false
 	for !success {
 		latestBlocks, ok := SBC.GetLatestBlocks()
@@ -336,7 +340,7 @@ func StartTryingNonces(w http.ResponseWriter, r *http.Request) {
 				block.Header.Nonce = x
 				SBC.Insert(block)
 				heartBeadData := data.NewHeartBeatData(true, Peers.GetSelfId(), block.Encode(), str, SELF_ADDR)
-				heartBeadData.Hops = 2
+				heartBeadData.Hops = 1
 				ForwardHeartBeat(heartBeadData)
 			}
 		}
@@ -361,26 +365,53 @@ func TryNonces(latestBlocks []p2.Block, Root string) (string, bool) {
 	return x, success
 }
 
-func Canonical(w http.ResponseWriter, r *http.Request) {
+func ListItems(w http.ResponseWriter, r *http.Request) {
 	lastBlocks, ok := SBC.GetLatestBlocks()
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	var chains [][]string
-	for _, block := range lastBlocks {
-		var chain []string
-		chain = append(chain, block.Encode())
-		for block.Header.Height != 0 {
-			block, _ = SBC.GetParentBlock(block)
-			chain = append(chain, block.Encode())
-		}
-		chains = append(chains, chain)
-	}
-	rawData, err := json.Marshal(chains)
+	chains := canonicalData(lastBlocks)
+	itemsData := bidder.ParseItemsData(chains)
+	rawData, err := json.Marshal(itemsData)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprint(w, string(rawData))
+}
+
+func canonicalData(lastBlocks []p2.Block) [][]p1.MerklePatriciaTrie {
+	var chains [][]p1.MerklePatriciaTrie
+	for _, block := range lastBlocks {
+		var chain []p1.MerklePatriciaTrie
+		chain = append(chain, block.Value)
+		for block.Header.Height != 0 {
+			block, _ = SBC.GetParentBlock(block)
+			chain = append(chain, block.Value)
+		}
+		chains = append(chains, chain)
+	}
+	return chains
+}
+
+func Canonical(w http.ResponseWriter, r *http.Request) {
+	lastBlocks, ok := SBC.GetLatestBlocks()
+	if !ok {
+		//handle error
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	var chains string
+	for i, block := range lastBlocks {
+		chain := "Chain" + strconv.Itoa(i) + "\n"
+		chain += block.Info()
+		for block.Header.Height != 0 {
+			block, _ = SBC.GetParentBlock(block)
+			chain += block.Info()
+		}
+		chains += chain
+	}
+	fmt.Fprint(w, chains)
 }
