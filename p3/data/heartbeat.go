@@ -7,6 +7,8 @@ type HeartBeatData struct {
 	PeerMapJson string `json:"peerMapJson"`
 	Addr        string `json:"addr"`
 	Hops        int32  `json:"hops"`
+	IfBid       bool   `json:"ifBid`
+	BidJson     string `json:"bidJson`
 }
 
 func NewHeartBeatData(ifNewBlock bool, id int32, blockJson string, peerMapJson string, addr string) HeartBeatData {
@@ -15,6 +17,12 @@ func NewHeartBeatData(ifNewBlock bool, id int32, blockJson string, peerMapJson s
 
 func PrepareHeartBeatData(sbc *SyncBlockChain, selfId int32, peerMapJson string, addr string) HeartBeatData {
 	heartBeatData := NewHeartBeatData(false, selfId, "", peerMapJson, addr)
+	heartBeatData.Hops = 1
+	return heartBeatData
+}
+
+func PrepareBidData(selfId int32, peerMapJson string, addr string, bidJson string) HeartBeatData {
+	heartBeatData := HeartBeatData{Id: selfId, PeerMapJson: peerMapJson, Addr: addr, IfBid: true, BidJson: bidJson}
 	heartBeatData.Hops = 1
 	return heartBeatData
 }

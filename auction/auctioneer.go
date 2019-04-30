@@ -9,12 +9,12 @@ import (
 )
 
 type Item struct {
-	Auctioneer int
-	ID         int
-	Detail     ItemDetail
+	AuctioneerID int
+	ItemID       int
+	Info         ItemInfo
 }
 
-type ItemDetail struct {
+type ItemInfo struct {
 	Name        string
 	Description string
 	Price       int
@@ -34,13 +34,13 @@ func (A *Auctioneer) PostItem(r *http.Request) (p1.MerklePatriciaTrie, error) {
 	if err != nil {
 		return mpt, err
 	}
-	var itemInfo ItemDetail
+	var itemInfo ItemInfo
 	if err := json.Unmarshal(body, &itemInfo); err != nil {
 		return mpt, err
 	}
 	mpt.Insert("Type", "ItemInfo")
-	mpt.Insert("Auctioneer", strconv.Itoa(A.ID))
-	mpt.Insert("ID", strconv.Itoa(A.ItemNum))
+	mpt.Insert("AuctioneerID", strconv.Itoa(A.ID))
+	mpt.Insert("ItemID", strconv.Itoa(A.ItemNum))
 	mpt.Insert("Name", itemInfo.Name)
 	mpt.Insert("Description", itemInfo.Description)
 	mpt.Insert("Price", strconv.Itoa(itemInfo.Price))

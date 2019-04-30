@@ -57,7 +57,7 @@ var routes = Routes{
 	Route{
 		"Post",
 		"POST",
-		"/post",
+		"/postItem",
 		PostItem,
 	},
 	Route{
@@ -65,5 +65,11 @@ var routes = Routes{
 		"GET",
 		"/listItem",
 		ListItems,
+	},
+	Route{
+		"Post",
+		"POST",
+		"/postBid",
+		PostBid,
 	},
 }

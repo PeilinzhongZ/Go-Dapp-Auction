@@ -201,28 +201,48 @@ func HeartBeatReceive(w http.ResponseWriter, r *http.Request) {
 	Peers.Add(heartBeat.Addr, heartBeat.Id)
 	Peers.InjectPeerMapJson(heartBeat.PeerMapJson, SELF_ADDR)
 	if heartBeat.IfNewBlock {
-		var block p2.Block
-		block.Decode(heartBeat.BlockJson)
-		if exist := SBC.CheckParentHash(block); exist {
+		handleNewBlock(heartBeat)
+		ForwardHeartbeat(heartBeat)
+	} else if heartBeat.IfBid {
+		// if is miner
+		// handleNewBid(heartBeat)
+		log.Println(heartBeat.BidJson)
+		ForwardHeartbeat(heartBeat)
+	}
+}
+
+func ForwardHeartbeat(heartBeat data.HeartBeatData) {
+	if heartBeat.Hops = heartBeat.Hops - 1; heartBeat.Hops != 0 {
+		heartBeat.Addr = SELF_ADDR
+		heartBeat.Id = Peers.GetSelfId()
+		SendHeartBeat(heartBeat)
+	}
+}
+
+func handleNewBlock(heartBeat data.HeartBeatData) {
+	var block p2.Block
+	block.Decode(heartBeat.BlockJson)
+	if exist := SBC.CheckParentHash(block); exist {
+		ok := CheckNonce(block)
+		if ok {
+			SBC.Insert(block)
+		}
+	} else {
+		AskForBlock(block.Header.Height-1, block.Header.ParentHash)
+		if exist = SBC.CheckParentHash(block); exist {
 			ok := CheckNonce(block)
 			if ok {
 				SBC.Insert(block)
 			}
-		} else {
-			AskForBlock(block.Header.Height-1, block.Header.ParentHash)
-			if exist = SBC.CheckParentHash(block); exist {
-				ok := CheckNonce(block)
-				if ok {
-					SBC.Insert(block)
-				}
-			}
-		}
-		if heartBeat.Hops = heartBeat.Hops - 1; heartBeat.Hops != 0 {
-			heartBeat.Addr = SELF_ADDR
-			heartBeat.Id = Peers.GetSelfId()
-			ForwardHeartBeat(heartBeat)
 		}
 	}
+}
+
+func handleNewBid(heartBeat data.HeartBeatData) {
+	// var bidDetail auction.BidDetail
+	// if err := json.Unmarshal([]byte(heartBeat.BidJson), &bidDetail); err != nil {
+
+	// }
 }
 
 // Ask another server to return a block of certain height and hash
@@ -268,7 +288,7 @@ func CheckNonce(block p2.Block) bool {
 	return strings.HasPrefix(result, "00000")
 }
 
-func ForwardHeartBeat(heartBeatData data.HeartBeatData) {
+func SendHeartBeat(heartBeatData data.HeartBeatData) {
 	list := Peers.Copy()
 	heartBeatJSON, err := json.Marshal(heartBeatData)
 	if err != nil {
@@ -281,36 +301,38 @@ func ForwardHeartBeat(heartBeatData data.HeartBeatData) {
 			_, err = http.Post(addr+"/heartbeat/receive", "application/json", body)
 			if err != nil {
 				// handle error
-				fmt.Println(err)
+				log.Println(err)
+				Peers.Delete(addr)
 			}
 		}(addr)
 	}
 }
 
 func StartHeartBeat() {
-	for range time.Tick(time.Second * 5) {
-		list := Peers.Copy()
+	for range time.Tick(time.Second * 10) {
 		str, err := Peers.PeerMapToJson()
 		if err != nil {
 			log.Println(err)
 			str = ""
 		}
 		heartBeatData := data.PrepareHeartBeatData(&SBC, Peers.GetSelfId(), str, SELF_ADDR)
-		heartBeatJSON, err := json.Marshal(heartBeatData)
-		if err != nil {
-			log.Println(err)
-		}
-		for addr := range list {
-			go func(addr string) {
-				body := bytes.NewBuffer(heartBeatJSON)
-				_, err = http.Post(addr+"/heartbeat/receive", "application/json", body)
-				if err != nil {
-					log.Println(err)
-					Peers.Delete(addr)
-				}
-			}(addr)
-		}
+		SendHeartBeat(heartBeatData)
 	}
+}
+
+func PostBid(w http.ResponseWriter, r *http.Request) {
+	bidJson, err := bidder.PostBid(Peers.GetSelfId(), r)
+	if err != nil {
+		w.WriteHeader(400)
+		return
+	}
+	str, err := Peers.PeerMapToJson()
+	if err != nil {
+		log.Println(err)
+		str = ""
+	}
+	heartBeatData := data.PrepareBidData(Peers.GetSelfId(), str, SELF_ADDR, bidJson)
+	SendHeartBeat(heartBeatData)
 }
 
 func PostItem(w http.ResponseWriter, r *http.Request) {
@@ -341,7 +363,7 @@ func StartTryingNonces(mpt p1.MerklePatriciaTrie) {
 				SBC.Insert(block)
 				heartBeadData := data.NewHeartBeatData(true, Peers.GetSelfId(), block.Encode(), str, SELF_ADDR)
 				heartBeadData.Hops = 1
-				ForwardHeartBeat(heartBeadData)
+				SendHeartBeat(heartBeadData)
 			}
 		}
 	}
@@ -372,7 +394,7 @@ func ListItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	chains := canonicalData(lastBlocks)
-	itemsData := bidder.ParseItemsData(chains)
+	itemsData := bidder.ListItems(chains)
 	rawData, err := json.Marshal(itemsData)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
