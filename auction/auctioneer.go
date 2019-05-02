@@ -40,7 +40,7 @@ func (A *Auctioneer) PostItem(r *http.Request) (p1.MerklePatriciaTrie, error) {
 	}
 	mpt.Insert("Type", "ItemInfo")
 	mpt.Insert("AuctioneerID", strconv.Itoa(A.ID))
-	mpt.Insert("ItemID", strconv.Itoa(A.ItemNum))
+	mpt.Insert("ItemID", strconv.Itoa(A.ItemNum+1))
 	mpt.Insert("Name", itemInfo.Name)
 	mpt.Insert("Description", itemInfo.Description)
 	mpt.Insert("Price", strconv.Itoa(itemInfo.Price))

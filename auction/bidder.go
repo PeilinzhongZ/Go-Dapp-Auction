@@ -33,6 +33,7 @@ type BidInfo struct {
 type Bidder struct {
 	ID      int
 	Address string
+	BidList []string
 }
 
 func (B *Bidder) ListItems(chainsData [][]p1.MerklePatriciaTrie) []map[string]ItemData {
@@ -49,22 +50,23 @@ func (B *Bidder) ListItems(chainsData [][]p1.MerklePatriciaTrie) []map[string]It
 	return itemDataList
 }
 
-func (B *Bidder) PostBid(bidderID int32, r *http.Request) (string, error) {
+func (B *Bidder) PostBid(bidderID int32, r *http.Request) (string, string, error) {
 	body, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	var bidInfo BidInfo
 	if err := json.Unmarshal(body, &bidInfo); err != nil {
-		return "", err
+		return "", "", err
 	}
 	bidDetail := BidDetail{int(bidderID), bidInfo}
 	bytes, err := json.Marshal(bidDetail)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return string(bytes), nil
+	itemIDValue := strconv.Itoa(bidInfo.AuctioneerID) + "-" + strconv.Itoa(bidInfo.ItemID)
+	return itemIDValue, string(bytes), nil
 }
 
 func parseMptData(mpt p1.MerklePatriciaTrie, itemsData map[string]ItemData, timeNow int64) {

@@ -37,6 +37,7 @@ var ifStarted bool
 
 var auctioneer auction.Auctioneer
 var bidder auction.Bidder
+var miner auction.Miner
 
 func initial() {
 	// This function will be executed before everything else.
@@ -55,6 +56,13 @@ func Start(w http.ResponseWriter, r *http.Request) {
 		}
 		initial()
 		Peers = data.NewPeerList(id, PEERS_SIZE)
+		auctioneer = auction.Auctioneer{int(id), SELF_ADDR, 1}
+		bidder = auction.Bidder{ID: int(id), Address: SELF_ADDR}
+		miner = auction.Miner{ID: int(id), Address: SELF_ADDR, IsMiner: false}
+		min, ok := r.URL.Query()["miner"]
+		if ok && min[0] == "true" {
+			miner.IsMiner = true
+		}
 		first, ok := r.URL.Query()["first"]
 		if ok && first[0] == "true" {
 			var gBlock p2.Block
@@ -76,8 +84,6 @@ func Start(w http.ResponseWriter, r *http.Request) {
 			SBC.UpdateEntireBlockChain(blockChainJSON)
 		}
 		rand.Seed(time.Now().UnixNano())
-		auctioneer = auction.Auctioneer{int(id), SELF_ADDR, 1}
-		bidder = auction.Bidder{int(id), SELF_ADDR}
 		go StartHeartBeat()
 		ifStarted = true
 	}
@@ -321,7 +327,7 @@ func StartHeartBeat() {
 }
 
 func PostBid(w http.ResponseWriter, r *http.Request) {
-	bidJson, err := bidder.PostBid(Peers.GetSelfId(), r)
+	id, bidJson, err := bidder.PostBid(Peers.GetSelfId(), r)
 	if err != nil {
 		w.WriteHeader(400)
 		return
@@ -333,6 +339,7 @@ func PostBid(w http.ResponseWriter, r *http.Request) {
 	}
 	heartBeatData := data.PrepareBidData(Peers.GetSelfId(), str, SELF_ADDR, bidJson)
 	SendHeartBeat(heartBeatData)
+	bidder.BidList = append(bidder.BidList, id)
 }
 
 func PostItem(w http.ResponseWriter, r *http.Request) {
