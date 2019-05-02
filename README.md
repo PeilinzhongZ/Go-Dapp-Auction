@@ -100,22 +100,22 @@ type ItemData struct {
 ## Implementation: (Accomplished by Midpoint)
 ### Auction:
 1. Post item info to blockchain.
-    - Parsing the body of POST request into ItemInfo struct then insert each element in ItemInfo into MPT
-    - Using this MPT and start trying Nonce
+    - Parsing the body of POST request into ItemInfo struct then insert each element in ItemInfo into MPT.
+    - Create a new thread to start trying Nonce using this MPT.
 ### Bidder
-1. Find all auction available in blockchain
-    - Get and store MPT in canonical blocks
+1. Find all auction available in blockchain.
+    - Get and store MPT in canonical blocks.
     - Parse MPT form the mpt of first block, if transaction Type is "ItemInfo", parse this mpt into ItemInfo, then create ItemData for this ItemInfo and store in a map. Otherwise, parse this mpt into Transaction, then add to list of transaction for specific ItemInfo in the map.
     - Marshal the map into json data, reply to user
 
-2. Post price for specific auction to miner
+2. Post price for specific auction to miner.
     - Parse the post request send by Bidder into BidInfo.
     - Create BidDetail by add parameter BidderID (Port number), then send BidDetail to Node on PeerList.
 
 ### Each Node
-- Receive the bid send by Bidder, and Forward to others in its Peerlist
+- Receive the bid send by Bidder, and Forward to others in its Peerlist.
 
 ### Changes in previous work:
-1. After the server start, it would create corresponding auctioneer and bidder instance based on Port Number and IP address
+1. After the server start, it would create corresponding auctioneer and bidder instance based on Port Number and IP address.
 2. Alter HeartBeatData to support BidDetail.
-3. Alter ForwardHeartBeat and ReceiveHeartBeat to support BidDetail 
+3. Alter ForwardHeartBeat and ReceiveHeartBeat to support BidDetail.
