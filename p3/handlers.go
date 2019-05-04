@@ -56,7 +56,7 @@ func Start(w http.ResponseWriter, r *http.Request) {
 		}
 		initial()
 		Peers = data.NewPeerList(id, PEERS_SIZE)
-		auctioneer = auction.Auctioneer{int(id), SELF_ADDR, 1}
+		auctioneer = auction.Auctioneer{int(id), SELF_ADDR, 0}
 		bidder = auction.Bidder{ID: int(id), Address: SELF_ADDR}
 		miner = auction.Miner{ID: int(id), Address: SELF_ADDR, IsMiner: false}
 		min, ok := r.URL.Query()["miner"]
@@ -210,9 +210,7 @@ func HeartBeatReceive(w http.ResponseWriter, r *http.Request) {
 		handleNewBlock(heartBeat)
 		ForwardHeartbeat(heartBeat)
 	} else if heartBeat.IfBid {
-		// if is miner
-		// handleNewBid(heartBeat)
-		log.Println(heartBeat.BidJson)
+		handleNewBid(heartBeat)
 		ForwardHeartbeat(heartBeat)
 	}
 }
@@ -245,10 +243,15 @@ func handleNewBlock(heartBeat data.HeartBeatData) {
 }
 
 func handleNewBid(heartBeat data.HeartBeatData) {
-	// var bidDetail auction.BidDetail
-	// if err := json.Unmarshal([]byte(heartBeat.BidJson), &bidDetail); err != nil {
-
-	// }
+	if miner.IsMiner {
+		id, mpt, err := miner.Min(heartBeat.BidJson)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		go StartTryingNonces(mpt)
+		miner.Trans = append(miner.Trans, id)
+	}
 }
 
 // Ask another server to return a block of certain height and hash

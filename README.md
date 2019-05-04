@@ -41,9 +41,10 @@ type Auctioneer struct {  // represent the Info of Auctioneer
 ```
 - ItemNum would automatically increase by 1 every time post a Item in blockchain
 ```
-type Bidder struct {    // represent the Info of Bidder
-	ID      int     // ID of Bidder (Port Number)
-	Address string  // IP address and Port Number
+type Bidder struct {     // represent the Info of Bidder
+	ID      int      // ID of Bidder (Port Number)
+	Address string   // IP address and Port Number
+	BidList	[]string // List stored the bid sent to Miner
 }
 ```
 
@@ -101,7 +102,7 @@ type ItemData struct {
 ### Auction:
 1. Post item info to blockchain.
     - Parsing the body of POST request into ItemInfo struct then insert each element in ItemInfo into MPT.
-    - Create a new thread to start trying Nonce using this MPT.
+    - Create a new thread to start trying Nonce using this MPT. Then increase the Auctioneer ItemNum
 ### Bidder
 1. Find all auction available in blockchain.
     - Get and store MPT in canonical blocks.
@@ -111,6 +112,7 @@ type ItemData struct {
 2. Post price for specific auction to miner.
     - Parse the post request send by Bidder into BidInfo.
     - Create BidDetail by add parameter BidderID (Port number), then send BidDetail to Node on PeerList.
+	- Add part of the info of this bid into Bidder's bid list
 
 ### Each Node
 - Receive the bid send by Bidder, and Forward to others in its Peerlist.
