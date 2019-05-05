@@ -37,6 +37,51 @@ type Bidder struct {
 	BidList []string
 }
 
+func (B *Bidder) ListItem(chainsData [][]p1.MerklePatriciaTrie, auctioneerID, itemID int) []ItemData {
+	var list []ItemData
+	for _, chainData := range chainsData {
+		var itemData ItemData
+		for i := len(chainData) - 1; i > 0; i-- {
+			mpt := chainData[i-1]
+			parseMptOne(mpt, &itemData)
+		}
+		list = append(list, itemData)
+	}
+	return list
+}
+
+func parseMptOne(mpt p1.MerklePatriciaTrie, itemData *ItemData) {
+	if typeName, err := mpt.Get("Type"); err == nil {
+		if typeName == "ItemInfo" {
+			aucIDString, _ := mpt.Get("AuctioneerID")
+			aucID, _ := strconv.Atoi(aucIDString)
+			IDString, _ := mpt.Get("ItemID")
+			ID, _ := strconv.Atoi(IDString)
+			name, _ := mpt.Get("Name")
+			desciption, _ := mpt.Get("Description")
+			priceString, _ := mpt.Get("Price")
+			endString, _ := mpt.Get("End")
+			end, _ := strconv.ParseInt(endString, 16, 64)
+			price, _ := strconv.Atoi(priceString)
+			var transactions []Transaction
+			itemData = &ItemData{Item{aucID, ID, ItemInfo{name, desciption, price, end}}, transactions}
+		} else if typeName == "Transaction" {
+			minerIDStr, _ := mpt.Get("MinerID")
+			minerID, _ := strconv.Atoi(minerIDStr)
+			bidderIDStr, _ := mpt.Get("BidderID")
+			bidderID, _ := strconv.Atoi(bidderIDStr)
+			auctioneerIDStr, _ := mpt.Get("AuctioneerID")
+			auctioneerID, _ := strconv.Atoi(auctioneerIDStr)
+			itemIDStr, _ := mpt.Get("ItemID")
+			itemID, _ := strconv.Atoi(itemIDStr)
+			bidStr, _ := mpt.Get("Bid")
+			bid, _ := strconv.Atoi(bidStr)
+			transaction := Transaction{minerID, BidDetail{bidderID, BidInfo{auctioneerID, itemID, bid}}}
+			itemData.Trans = append(itemData.Trans, transaction)
+		}
+	}
+}
+
 func (B *Bidder) ListItems(chainsData [][]p1.MerklePatriciaTrie) []map[string]*ItemData {
 	var itemDataList []map[string]*ItemData
 	for _, chainData := range chainsData {

@@ -397,7 +397,7 @@ func TryNonces(latestBlocks []p2.Block, Root string) (string, bool) {
 	return x, success
 }
 
-func ListItems(w http.ResponseWriter, r *http.Request) {
+func ListItem(w http.ResponseWriter, r *http.Request) {
 	lastBlocks, ok := SBC.GetLatestBlocks()
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)

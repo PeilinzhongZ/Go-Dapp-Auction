@@ -64,7 +64,7 @@ var routes = Routes{
 		"ListItem",
 		"GET",
 		"/listItem",
-		ListItems,
+		ListItem,
 	},
 	Route{
 		"Post",
