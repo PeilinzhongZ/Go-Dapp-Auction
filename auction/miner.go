@@ -24,7 +24,7 @@ func (M *Miner) Min(bidJson string) (string, p1.MerklePatriciaTrie, error) {
 	mpt.Insert("BidderID", strconv.Itoa(bidDetail.BidderID))
 	mpt.Insert("AuctioneerID", strconv.Itoa(bidDetail.BidInfo.AuctioneerID))
 	mpt.Insert("ItemID", strconv.Itoa(bidDetail.BidInfo.ItemID))
-	mpt.Insert("Bid", strconv.Itoa(bidDetail.BidInfo.Bid))
+	mpt.Insert("Price", strconv.Itoa(bidDetail.BidInfo.Price))
 	itemIDValue := strconv.Itoa(bidDetail.BidInfo.AuctioneerID) + "-" + strconv.Itoa(bidDetail.BidInfo.ItemID)
 	return itemIDValue, mpt, nil
 }

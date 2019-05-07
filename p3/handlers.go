@@ -56,9 +56,9 @@ func Start(w http.ResponseWriter, r *http.Request) {
 		}
 		initial()
 		Peers = data.NewPeerList(id, PEERS_SIZE)
-		auctioneer = auction.Auctioneer{int(id), SELF_ADDR, 0}
-		bidder = auction.Bidder{ID: int(id), Address: SELF_ADDR}
-		miner = auction.Miner{ID: int(id), Address: SELF_ADDR, IsMiner: false}
+		auctioneer = auction.Auctioneer{int(Peers.GetSelfId()), SELF_ADDR, 0}
+		bidder = auction.Bidder{ID: int(Peers.GetSelfId()), Address: SELF_ADDR}
+		miner = auction.Miner{ID: int(Peers.GetSelfId()), Address: SELF_ADDR, IsMiner: false}
 		min, ok := r.URL.Query()["miner"]
 		if ok && min[0] == "true" {
 			miner.IsMiner = true
@@ -330,7 +330,7 @@ func StartHeartBeat() {
 }
 
 func PostBid(w http.ResponseWriter, r *http.Request) {
-	id, bidJson, err := bidder.PostBid(Peers.GetSelfId(), r)
+	id, bidJSON, err := bidder.PostBid(Peers.GetSelfId(), r)
 	if err != nil {
 		w.WriteHeader(400)
 		return
@@ -340,7 +340,7 @@ func PostBid(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		str = ""
 	}
-	heartBeatData := data.PrepareBidData(Peers.GetSelfId(), str, SELF_ADDR, bidJson)
+	heartBeatData := data.PrepareBidData(Peers.GetSelfId(), str, SELF_ADDR, bidJSON)
 	SendHeartBeat(heartBeatData)
 	bidder.BidList = append(bidder.BidList, id)
 }
@@ -398,14 +398,25 @@ func TryNonces(latestBlocks []p2.Block, Root string) (string, bool) {
 }
 
 func ListItem(w http.ResponseWriter, r *http.Request) {
+	aIDStr, ok := r.URL.Query()["auctioneerID"]
+	iIDStr, ok2 := r.URL.Query()["itemID"]
 	lastBlocks, ok := SBC.GetLatestBlocks()
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	chains := canonicalData(lastBlocks)
-	itemsData := bidder.ListItems(chains)
-	rawData, err := json.Marshal(itemsData)
+	var rawData []byte
+	var err error
+	if ok && ok2 {
+		aID, _ := strconv.Atoi(aIDStr[0])
+		iID, _ := strconv.Atoi(iIDStr[0])
+		itemData := bidder.ListItem(chains, aID, iID)
+		rawData, err = json.Marshal(itemData)
+	} else {
+		itemsData := bidder.ListItems(chains)
+		rawData, err = json.Marshal(itemsData)
+	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

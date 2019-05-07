@@ -3,6 +3,7 @@ package auction
 import (
 	"../p1"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	// "log"
 	"net/http"
@@ -28,7 +29,7 @@ type BidDetail struct {
 type BidInfo struct {
 	AuctioneerID int
 	ItemID       int
-	Bid          int
+	Price        int
 }
 
 type Bidder struct {
@@ -53,6 +54,7 @@ func (B *Bidder) ListItem(chainsData [][]p1.MerklePatriciaTrie, auctioneerID, it
 func parseMptOne(mpt p1.MerklePatriciaTrie, itemData *ItemData) {
 	if typeName, err := mpt.Get("Type"); err == nil {
 		if typeName == "ItemInfo" {
+			fmt.Println("------------------------")
 			aucIDString, _ := mpt.Get("AuctioneerID")
 			aucID, _ := strconv.Atoi(aucIDString)
 			IDString, _ := mpt.Get("ItemID")
@@ -66,15 +68,15 @@ func parseMptOne(mpt p1.MerklePatriciaTrie, itemData *ItemData) {
 			var transactions []Transaction
 			itemData = &ItemData{Item{aucID, ID, ItemInfo{name, desciption, price, end}}, transactions}
 		} else if typeName == "Transaction" {
-			minerIDStr, _ := mpt.Get("MinerID")
+			minerIDStr, _ := mpt.Values["MinerID"]
 			minerID, _ := strconv.Atoi(minerIDStr)
-			bidderIDStr, _ := mpt.Get("BidderID")
+			bidderIDStr, _ := mpt.Values["BidderID"]
 			bidderID, _ := strconv.Atoi(bidderIDStr)
-			auctioneerIDStr, _ := mpt.Get("AuctioneerID")
+			auctioneerIDStr, _ := mpt.Values["AuctioneerID"]
 			auctioneerID, _ := strconv.Atoi(auctioneerIDStr)
-			itemIDStr, _ := mpt.Get("ItemID")
+			itemIDStr, _ := mpt.Values["ItemID"]
 			itemID, _ := strconv.Atoi(itemIDStr)
-			bidStr, _ := mpt.Get("Bid")
+			bidStr, _ := mpt.Values["Price"]
 			bid, _ := strconv.Atoi(bidStr)
 			transaction := Transaction{minerID, BidDetail{bidderID, BidInfo{auctioneerID, itemID, bid}}}
 			itemData.Trans = append(itemData.Trans, transaction)
@@ -136,15 +138,15 @@ func parseMptData(mpt p1.MerklePatriciaTrie, itemsData map[string]*ItemData, tim
 				}
 			}
 		} else if typeName == "Transaction" {
-			minerIDStr, _ := mpt.Get("MinerID")
+			minerIDStr, _ := mpt.Values["MinerID"]
 			minerID, _ := strconv.Atoi(minerIDStr)
-			bidderIDStr, _ := mpt.Get("BidderID")
+			bidderIDStr, _ := mpt.Values["BidderID"]
 			bidderID, _ := strconv.Atoi(bidderIDStr)
-			auctioneerIDStr, _ := mpt.Get("AuctioneerID")
+			auctioneerIDStr, _ := mpt.Values["AuctioneerID"]
 			auctioneerID, _ := strconv.Atoi(auctioneerIDStr)
-			itemIDStr, _ := mpt.Get("ItemID")
+			itemIDStr, _ := mpt.Values["ItemID"]
 			itemID, _ := strconv.Atoi(itemIDStr)
-			bidStr, _ := mpt.Get("Bid")
+			bidStr, _ := mpt.Values["Price"]
 			bid, _ := strconv.Atoi(bidStr)
 			if itemdata, ok := itemsData[auctioneerIDStr+"-"+itemIDStr]; ok {
 				transaction := Transaction{minerID, BidDetail{bidderID, BidInfo{auctioneerID, itemID, bid}}}
