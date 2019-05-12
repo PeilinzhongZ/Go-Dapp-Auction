@@ -72,4 +72,10 @@ var routes = Routes{
 		"/postBid",
 		PostBid,
 	},
+	Route{
+		"Finalize",
+		"GET",
+		"/finalize",
+		FinalizeAuction,
+	},
 }

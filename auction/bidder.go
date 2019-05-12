@@ -1,7 +1,6 @@
 package auction
 
 import (
-	"../p1"
 	"encoding/json"
 	"io/ioutil"
 	// "log"
@@ -13,6 +12,7 @@ import (
 type ItemData struct {
 	Iteminfo Item
 	Trans    []Transaction
+	Result   Result
 }
 
 type Transaction struct {
@@ -22,6 +22,7 @@ type Transaction struct {
 
 type BidDetail struct {
 	BidderID int
+	Num      int
 	BidInfo  BidInfo
 }
 
@@ -37,7 +38,7 @@ type Bidder struct {
 	BidList []string
 }
 
-func (B *Bidder) ListItem(chainsData [][]p1.MerklePatriciaTrie, auctioneerID, itemID int) []ItemData {
+func (B *Bidder) ListItem(chainsData [][]TrieWithTime, auctioneerID, itemID int) []ItemData {
 	var list []ItemData
 	for _, chainData := range chainsData {
 		var itemData ItemData
@@ -47,9 +48,13 @@ func (B *Bidder) ListItem(chainsData [][]p1.MerklePatriciaTrie, auctioneerID, it
 			if !ok {
 				itemData, ok = findItem(mpt, auctioneerID, itemID)
 			} else {
-				trans, ok2 := findTrans(mpt, auctioneerID, itemID)
+				trans, result, isTX, ok2 := findTrans(mpt, auctioneerID, itemID)
 				if ok2 {
-					itemData.Trans = append(itemData.Trans, trans)
+					if isTX {
+						itemData.Trans = append(itemData.Trans, trans)
+					} else {
+						itemData.Result = result
+					}
 				}
 			}
 		}
@@ -60,23 +65,23 @@ func (B *Bidder) ListItem(chainsData [][]p1.MerklePatriciaTrie, auctioneerID, it
 	return list
 }
 
-func findItem(mpt p1.MerklePatriciaTrie, auctioneerID, itemID int) (ItemData, bool) {
-	if typeName, err := mpt.Get("Type"); err == nil {
+func findItem(twt TrieWithTime, auctioneerID, itemID int) (ItemData, bool) {
+	if typeName, err := twt.Trie.Get("Type"); err == nil {
 		if typeName == "ItemInfo" {
-			aucIDString, _ := mpt.Get("AuctioneerID")
+			aucIDString, _ := twt.Trie.Values["AuctioneerID"]
 			aucID, _ := strconv.Atoi(aucIDString)
 			if aucID == auctioneerID {
-				IDString, _ := mpt.Get("ItemID")
+				IDString, _ := twt.Trie.Values["ItemID"]
 				ID, _ := strconv.Atoi(IDString)
 				if ID == itemID {
-					name, _ := mpt.Get("Name")
-					desciption, _ := mpt.Get("Description")
-					priceString, _ := mpt.Get("Price")
-					endString, _ := mpt.Get("End")
+					name, _ := twt.Trie.Values["Name"]
+					desciption, _ := twt.Trie.Values["Description"]
+					priceString, _ := twt.Trie.Values["Price"]
+					endString, _ := twt.Trie.Values["End"]
 					end, _ := strconv.ParseInt(endString, 16, 64)
 					price, _ := strconv.Atoi(priceString)
 					var transactions []Transaction
-					return ItemData{Item{aucID, ID, ItemInfo{name, desciption, price, end}}, transactions}, true
+					return ItemData{Iteminfo: Item{aucID, ID, ItemInfo{name, desciption, price, end}}, Trans: transactions}, true
 				}
 				return ItemData{}, false
 			}
@@ -87,34 +92,38 @@ func findItem(mpt p1.MerklePatriciaTrie, auctioneerID, itemID int) (ItemData, bo
 	return ItemData{}, false
 }
 
-func findTrans(mpt p1.MerklePatriciaTrie, auctioneerID, itemID int) (Transaction, bool) {
-	if typeName, err := mpt.Get("Type"); err == nil {
-		if typeName == "Transaction" {
-			auctioneerIDStr, _ := mpt.Values["AuctioneerID"]
-			aucID, _ := strconv.Atoi(auctioneerIDStr)
-			if aucID == auctioneerID {
-				itemIDStr, _ := mpt.Values["ItemID"]
-				ID, _ := strconv.Atoi(itemIDStr)
-				if ID == itemID {
-					minerIDStr, _ := mpt.Values["MinerID"]
-					minerID, _ := strconv.Atoi(minerIDStr)
-					bidderIDStr, _ := mpt.Values["BidderID"]
-					bidderID, _ := strconv.Atoi(bidderIDStr)
-					bidStr, _ := mpt.Values["Price"]
-					bid, _ := strconv.Atoi(bidStr)
-					transaction := Transaction{minerID, BidDetail{bidderID, BidInfo{aucID, ID, bid}}}
-					return transaction, true
+func findTrans(twt TrieWithTime, auctioneerID, itemID int) (Transaction, Result, bool, bool) {
+	if typeName, err := twt.Trie.Get("Type"); err == nil {
+		auctioneerIDStr, _ := twt.Trie.Values["AuctioneerID"]
+		aucID, _ := strconv.Atoi(auctioneerIDStr)
+		if aucID == auctioneerID {
+			itemIDStr, _ := twt.Trie.Values["ItemID"]
+			ID, _ := strconv.Atoi(itemIDStr)
+			if ID == itemID {
+				minerIDStr, _ := twt.Trie.Values["MinerID"]
+				minerID, _ := strconv.Atoi(minerIDStr)
+				bidderIDStr, _ := twt.Trie.Values["BidderID"]
+				bidderID, _ := strconv.Atoi(bidderIDStr)
+				bidStr, _ := twt.Trie.Values["Price"]
+				bid, _ := strconv.Atoi(bidStr)
+				numStr, _ := twt.Trie.Values["Num"]
+				num, _ := strconv.Atoi(numStr)
+				if typeName == "Transaction" {
+					transaction := Transaction{minerID, BidDetail{bidderID, num, BidInfo{aucID, ID, bid}}}
+					return transaction, Result{}, true, true
+				} else if typeName == "Result" {
+					result := Result{true, minerID, bidderID, num, bid}
+					return Transaction{}, result, false, true
 				}
-				return Transaction{}, false
 			}
-			return Transaction{}, false
+			return Transaction{}, Result{}, true, false
 		}
-		return Transaction{}, false
+		return Transaction{}, Result{}, true, false
 	}
-	return Transaction{}, false
+	return Transaction{}, Result{}, true, false
 }
 
-func (B *Bidder) ListItems(chainsData [][]p1.MerklePatriciaTrie) []map[string]*ItemData {
+func (B *Bidder) ListItems(chainsData [][]TrieWithTime) []map[string]*ItemData {
 	var itemDataList []map[string]*ItemData
 	for _, chainData := range chainsData {
 		itemsData := make(map[string]*ItemData)
@@ -138,7 +147,7 @@ func (B *Bidder) PostBid(bidderID int32, r *http.Request) (string, string, error
 	if err := json.Unmarshal(body, &bidInfo); err != nil {
 		return "", "", err
 	}
-	bidDetail := BidDetail{int(bidderID), bidInfo}
+	bidDetail := BidDetail{int(bidderID), len(B.BidList), bidInfo}
 	bytes, err := json.Marshal(bidDetail)
 	if err != nil {
 		return "", "", err
@@ -147,40 +156,47 @@ func (B *Bidder) PostBid(bidderID int32, r *http.Request) (string, string, error
 	return itemIDValue, string(bytes), nil
 }
 
-func parseMptData(mpt p1.MerklePatriciaTrie, itemsData map[string]*ItemData, timeNow int64) {
-	if typeName, err := mpt.Get("Type"); err == nil {
+func parseMptData(twt TrieWithTime, itemsData map[string]*ItemData, timeNow int64) {
+	if typeName, err := twt.Trie.Get("Type"); err == nil {
 		if typeName == "ItemInfo" {
-			if endString, err := mpt.Get("End"); err == nil {
+			if endString, err := twt.Trie.Get("End"); err == nil {
 				if end, err := strconv.ParseInt(endString, 16, 64); err == nil {
 					// if end > timeNow {
-					aucIDString, _ := mpt.Get("AuctioneerID")
+					aucIDString, _ := twt.Trie.Values["AuctioneerID"]
 					aucID, _ := strconv.Atoi(aucIDString)
-					IDString, _ := mpt.Get("ItemID")
+					IDString, _ := twt.Trie.Values["ItemID"]
 					ID, _ := strconv.Atoi(IDString)
-					name, _ := mpt.Get("Name")
-					desciption, _ := mpt.Get("Description")
-					priceString, _ := mpt.Get("Price")
+					name, _ := twt.Trie.Values["Name"]
+					desciption, _ := twt.Trie.Values["Description"]
+					priceString, _ := twt.Trie.Values["Price"]
 					price, _ := strconv.Atoi(priceString)
 					var transactions []Transaction
-					itemData := ItemData{Item{aucID, ID, ItemInfo{name, desciption, price, end}}, transactions}
+					itemData := ItemData{Iteminfo: Item{aucID, ID, ItemInfo{name, desciption, price, end}}, Trans: transactions}
 					itemsData[aucIDString+"-"+IDString] = &itemData
 					// }
 				}
 			}
-		} else if typeName == "Transaction" {
-			minerIDStr, _ := mpt.Values["MinerID"]
+		} else {
+			minerIDStr, _ := twt.Trie.Values["MinerID"]
 			minerID, _ := strconv.Atoi(minerIDStr)
-			bidderIDStr, _ := mpt.Values["BidderID"]
+			bidderIDStr, _ := twt.Trie.Values["BidderID"]
 			bidderID, _ := strconv.Atoi(bidderIDStr)
-			auctioneerIDStr, _ := mpt.Values["AuctioneerID"]
+			auctioneerIDStr, _ := twt.Trie.Values["AuctioneerID"]
 			auctioneerID, _ := strconv.Atoi(auctioneerIDStr)
-			itemIDStr, _ := mpt.Values["ItemID"]
+			itemIDStr, _ := twt.Trie.Values["ItemID"]
+			numStr, _ := twt.Trie.Values["Num"]
+			num, _ := strconv.Atoi(numStr)
 			itemID, _ := strconv.Atoi(itemIDStr)
-			bidStr, _ := mpt.Values["Price"]
+			bidStr, _ := twt.Trie.Values["Price"]
 			bid, _ := strconv.Atoi(bidStr)
 			if itemdata, ok := itemsData[auctioneerIDStr+"-"+itemIDStr]; ok {
-				transaction := Transaction{minerID, BidDetail{bidderID, BidInfo{auctioneerID, itemID, bid}}}
-				itemdata.Trans = append(itemdata.Trans, transaction)
+				if typeName == "Transaction" {
+					transaction := Transaction{minerID, BidDetail{bidderID, num, BidInfo{auctioneerID, itemID, bid}}}
+					itemdata.Trans = append(itemdata.Trans, transaction)
+				} else if typeName == "Result" {
+					result := Result{true, minerID, bidderID, num, bid}
+					itemdata.Result = result
+				}
 			}
 		}
 	}

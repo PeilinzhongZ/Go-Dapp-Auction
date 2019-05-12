@@ -94,3 +94,9 @@ func (sbc *SyncBlockChain) GetLength() int32 {
 	defer sbc.mux.Unlock()
 	return sbc.bc.Length
 }
+
+func (sbc *SyncBlockChain) CheckCanonical() bool {
+	sbc.mux.Lock()
+	defer sbc.mux.Unlock()
+	return sbc.bc.CheckCanonical()
+}

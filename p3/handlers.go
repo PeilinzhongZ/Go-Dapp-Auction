@@ -400,8 +400,8 @@ func TryNonces(latestBlocks []p2.Block, Root string) (string, bool) {
 func ListItem(w http.ResponseWriter, r *http.Request) {
 	aIDStr, ok := r.URL.Query()["auctioneerID"]
 	iIDStr, ok2 := r.URL.Query()["itemID"]
-	lastBlocks, ok := SBC.GetLatestBlocks()
-	if !ok {
+	lastBlocks, ok3 := SBC.GetLatestBlocks()
+	if !ok3 {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -425,14 +425,37 @@ func ListItem(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, string(rawData))
 }
 
-func canonicalData(lastBlocks []p2.Block) [][]p1.MerklePatriciaTrie {
-	var chains [][]p1.MerklePatriciaTrie
+func FinalizeAuction(w http.ResponseWriter, r *http.Request) {
+	iIDStr, ok := r.URL.Query()["itemID"]
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	for true {
+		if SBC.CheckCanonical() {
+			break
+		}
+	}
+	lastBlocks, ok3 := SBC.GetLatestBlocks()
+	if !ok3 {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	chains := canonicalData(lastBlocks)
+	iID, _ := strconv.Atoi(iIDStr[0])
+	itemData := bidder.ListItem(chains, auctioneer.ID, iID)
+	winner := auctioneer.DetermineWinner(itemData[0])
+	StartTryingNonces(winner)
+}
+
+func canonicalData(lastBlocks []p2.Block) [][]auction.TrieWithTime {
+	var chains [][]auction.TrieWithTime
 	for _, block := range lastBlocks {
-		var chain []p1.MerklePatriciaTrie
-		chain = append(chain, block.Value)
+		var chain []auction.TrieWithTime
+		chain = append(chain, auction.TrieWithTime{block.Value, block.Header.Timestamp})
 		for block.Header.Height != 0 {
 			block, _ = SBC.GetParentBlock(block)
-			chain = append(chain, block.Value)
+			chain = append(chain, auction.TrieWithTime{block.Value, block.Header.Timestamp})
 		}
 		chains = append(chains, chain)
 	}

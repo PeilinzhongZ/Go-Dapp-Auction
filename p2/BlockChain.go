@@ -137,3 +137,7 @@ func (bc *BlockChain) Show() string {
 	rs = fmt.Sprintf("This is the BlockChain: %s\n", hex.EncodeToString(sum[:])) + rs
 	return rs
 }
+
+func (bc *BlockChain) CheckCanonical() bool {
+	return len(bc.Chain[bc.Length-6]) == 1
+}
