@@ -15,7 +15,7 @@ Auctioneer may lie about which bidder provide hightest price for this auction. W
 ### Auctioneer
 1. Post item info such as description, phote, end time and starting price, etc. to the blockchain.
     > Midpoint--before 04/22
-2. Determine the winner and post the final result of auction, winner info, to the blockchain. (Determine when 6 blocks are created after end time)
+2. Determine the winner and post the final result of auction, winner info, to the blockchain. (Determine when canonical chain 6 blocks advance than side chian after end time)
 
 ### Bidder
 1. Find all auction available (before end time) in blockchain.
