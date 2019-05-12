@@ -44,14 +44,16 @@ func (B *Bidder) ListItem(chainsData [][]TrieWithTime, auctioneerID, itemID int)
 		var itemData ItemData
 		var ok bool
 		for i := len(chainData) - 1; i > 0; i-- {
-			mpt := chainData[i-1]
+			twt := chainData[i-1]
 			if !ok {
-				itemData, ok = findItem(mpt, auctioneerID, itemID)
+				itemData, ok = findItem(twt, auctioneerID, itemID)
 			} else {
-				trans, result, isTX, ok2 := findTrans(mpt, auctioneerID, itemID)
+				trans, result, isTX, ok2 := findTrans(twt, auctioneerID, itemID)
 				if ok2 {
 					if isTX {
+						// if itemData.Iteminfo.Info.End > twt.Timestamp {
 						itemData.Trans = append(itemData.Trans, trans)
+						// }
 					} else {
 						itemData.Result = result
 					}
@@ -191,8 +193,10 @@ func parseMptData(twt TrieWithTime, itemsData map[string]*ItemData, timeNow int6
 			bid, _ := strconv.Atoi(bidStr)
 			if itemdata, ok := itemsData[auctioneerIDStr+"-"+itemIDStr]; ok {
 				if typeName == "Transaction" {
+					// if itemdata.Iteminfo.Info.End > twt.Timestamp {
 					transaction := Transaction{minerID, BidDetail{bidderID, num, BidInfo{auctioneerID, itemID, bid}}}
 					itemdata.Trans = append(itemdata.Trans, transaction)
+					// }
 				} else if typeName == "Result" {
 					result := Result{true, minerID, bidderID, num, bid}
 					itemdata.Result = result

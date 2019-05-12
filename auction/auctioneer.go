@@ -4,7 +4,7 @@ import (
 	"../p1"
 	"encoding/json"
 	"io/ioutil"
-	"log"
+	// "log"
 	"net/http"
 	"strconv"
 )
@@ -49,7 +49,6 @@ func (A *Auctioneer) PostItem(r *http.Request) (p1.MerklePatriciaTrie, error) {
 	}
 	mpt.Insert("Type", "ItemInfo")
 	mpt.Insert("AuctioneerID", strconv.Itoa(A.ID))
-	log.Println(strconv.Itoa(A.ItemNum + 1))
 	mpt.Insert("ItemID", strconv.Itoa(A.ItemNum+1))
 	mpt.Insert("Name", itemInfo.Name)
 	mpt.Insert("Description", itemInfo.Description)
