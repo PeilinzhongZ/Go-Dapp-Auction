@@ -78,4 +78,10 @@ var routes = Routes{
 		"/finalize",
 		FinalizeAuction,
 	},
+	Route{
+		"Validate",
+		"GET",
+		"/check",
+		CheckResult,
+	},
 }

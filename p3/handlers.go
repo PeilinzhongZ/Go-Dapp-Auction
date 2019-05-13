@@ -428,7 +428,7 @@ func ListItem(w http.ResponseWriter, r *http.Request) {
 func FinalizeAuction(w http.ResponseWriter, r *http.Request) {
 	iIDStr, ok := r.URL.Query()["itemID"]
 	if !ok {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	for true {
@@ -446,6 +446,32 @@ func FinalizeAuction(w http.ResponseWriter, r *http.Request) {
 	itemData := bidder.ListItem(chains, auctioneer.ID, iID)
 	winner := auctioneer.DetermineWinner(itemData[0])
 	StartTryingNonces(winner)
+}
+
+func CheckResult(w http.ResponseWriter, r *http.Request) {
+	aIDStr, ok := r.URL.Query()["auctioneerID"]
+	iIDStr, ok2 := r.URL.Query()["itemID"]
+	if !ok || !ok2 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	lastBlocks, ok3 := SBC.GetLatestBlocks()
+	if !ok3 {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	chains := canonicalData(lastBlocks)
+	aID, _ := strconv.Atoi(aIDStr[0])
+	iID, _ := strconv.Atoi(iIDStr[0])
+	itemData := bidder.ListItem(chains, aID, iID)
+	validData := bidder.Validate(itemData[0])
+	rawData, err := json.Marshal(validData)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprint(w, string(rawData))
 }
 
 func canonicalData(lastBlocks []p2.Block) [][]auction.TrieWithTime {

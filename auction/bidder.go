@@ -32,10 +32,36 @@ type BidInfo struct {
 	Price        int
 }
 
+type Validation struct {
+	Result Result
+	Valid  bool
+	Expect Result
+}
+
 type Bidder struct {
 	ID      int
 	Address string
 	BidList []string
+}
+
+func (B *Bidder) Validate(itemData ItemData) Validation {
+	if itemData.Result.Finalized {
+		maxTx := Transaction{Detail: BidDetail{BidInfo: BidInfo{Price: itemData.Iteminfo.Info.Price}}}
+		for _, tx := range itemData.Trans {
+			if tx.Detail.BidInfo.Price > maxTx.Detail.BidInfo.Price {
+				maxTx = tx
+			}
+		}
+		if maxTx.MinerID == itemData.Result.MinerID &&
+			maxTx.Detail.BidderID == itemData.Result.BidderID &&
+			maxTx.Detail.Num == itemData.Result.TransactionNum &&
+			maxTx.Detail.BidInfo.Price == itemData.Result.Price {
+			return Validation{itemData.Result, true, itemData.Result}
+		}
+		return Validation{itemData.Result, false,
+			Result{true, maxTx.MinerID, maxTx.Detail.BidderID, maxTx.Detail.Num, maxTx.Detail.BidInfo.Price}}
+	}
+	return Validation{Result{}, false, Result{}}
 }
 
 func (B *Bidder) ListItem(chainsData [][]TrieWithTime, auctioneerID, itemID int) []ItemData {
