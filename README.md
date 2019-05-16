@@ -171,6 +171,7 @@ type Validation struct {
 3. Alter ForwardHeartBeat and ReceiveHeartBeat to support BidDetail.
 4. Add canonical method to parse the mpt with according timestamp in a datastruct that used for parsing the blockchain.
 5. Alter StartTryingNonce to support custom mpt.
+6. On start up the server, create auctioneer, bidder and miner instance for each node. If someone want to be miner, should specify in start request.
 
 ## Result
 **All Functionality are finished**
