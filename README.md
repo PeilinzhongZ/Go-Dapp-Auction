@@ -4,7 +4,7 @@
 Using Blockchain to create a marketplace for auction
 
 ## Why?
-Auctioneer may lie about which bidder provide hightest price for this auction. When using blockchain to implement a marketplace for auction, every bidder have to put transaction in the blockchain, which can provide immutability, and every can see the transaction whcih can confirm the actual winner.
+Auctioneer and server holder may lie about which bidder provide hightest price for this auction. When using blockchain to implement a marketplace for auction, every bidder have to put transaction in the blockchain, which can provide immutability, and every can see the transaction whcih can confirm the actual winner.
 
 ## How?
 - Auctioneer can post the information about the item to blockchain, such as description and starting price, etc. Also Auctioneer also can based on transactions to determine the winner of this auction.
