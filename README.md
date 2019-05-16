@@ -14,19 +14,23 @@ Auctioneer and server holder may lie about which bidder provide hightest price f
 ## Functionalities
 ### Auctioneer
 1. Post item info such as description, phote, end time and starting price, etc. to the blockchain.
-    > Midpoint--before 04/22
+    > Midpoint--Finished before 04/22
 2. Determine the winner and post the final result of auction, winner info, to the blockchain. (Determine when canonical chain 6 blocks advance than side chian after end time)
+	> Finished before deadline
 
 ### Bidder
 1. Find all auction available (before end time) in blockchain.
-    > Midpoint--before 04/26
+    > Midpoint--Finished before 04/26
 2. Post price for specific auction to miner.
-    > Midpoint--before 05/01
+    > Midpoint--Finished before 05/01
 3. Check specific auction transaction
+	> Finished before deadline
 4. Check if the winner of specific auction is valid.
+	> Finished before deadline
 
 ### Miner
 1. Creat block based on provided price of bidder.
+	> Finished before deadline
 
 ## Success
 - Making sure that every bidder can censor the auction and checking if the winner transaction is in canonical chain and this winner provide hightest price.
