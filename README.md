@@ -47,6 +47,14 @@ type Bidder struct {     // represent the Info of Bidder
 	BidList	[]string // List stored the bid sent to Miner
 }
 ```
+```
+type Miner struct {
+	ID      int	// ID of miner
+	Address string // Address of miner
+	Trans   []string // Transaction they already post to blockchain
+	IsMiner bool // determin if a miner
+}
+```
 
 ```
 type ItemInfo struct {
@@ -91,18 +99,40 @@ type Transaction struct {
 - Transaction is used for parsing Bid in mpt
 ```
 type ItemData struct {
-	Iteminfo Item  // Information of this Item
+	Iteminfo Item           // Information of this Item
 	Trans    []Transaction  // all bids for this specific Item
 }
 ```
 - ItemData used to store all bids for specific Item
 - ItemData would be store in map access with this ItemID (string of combination of AuctionID and ItemID)
+```
+type Result struct {
+	Finalized      bool // If finalized
+	MinerID        int  // Miner ID that win the auction
+	BidderID       int  // Bidder ID that win the auction
+	TransactionNum int  // Transaction number that win the auction
+	Price          int  // Final Price for this auction
+}
+```
+- Result is the struct return by API that show the finalization of the auction
+```
+type Validation struct {
+	Result Result // Result post by auctioneer
+	Valid  bool   // if this result is valid, true
+	Expect Result // the expect result for this auction
+}
+```
 
 ## Implementation: (Accomplished by Midpoint)
 ### Auction:
 1. Post item info to blockchain.
     - Parsing the body of POST request into ItemInfo struct then insert each element in ItemInfo into MPT.
     - Create a new thread to start trying Nonce using this MPT. Then increase the Auctioneer ItemNum
+2. Determine the winner and post the final result of auction, winner info, to the blockchain.
+	- When the times over, auctioneer call the API with specific Item ID.
+	- Server read the GET request and wait untill the longest chain is 6 block advance than other side chain.
+	- Parse the blockchain into a mpt with timestamp list, find out the frist transaction that provide highest price before end time.
+	- Get the information of this transaction and post this info as Result to blockchain.
 ### Bidder
 1. Find all auction available in blockchain.
     - Get and store MPT in canonical blocks.
@@ -114,6 +144,24 @@ type ItemData struct {
     - Create BidDetail by add parameter BidderID (Port number), then send BidDetail to Node on PeerList.
 	- Add part of the info of this bid into Bidder's bid list
 
+3. Check specific auction transaction
+	- Parse the GET request call by user, get the auctioneer ID and item ID.
+	- Parse the MPT from Blockchain, then according to auctioneer ID and item ID find out the mpt that contain this info and create a ItemData struct for this item.
+	- Parse the remaining mpt, if this transaction is for this item, then add to the transaction list in this ItemData. if this mpt is a result of this auction, add to the Result in ItemData.
+	- return this ItemData back to user.
+
+4. Check if the winner of specific auction is valid.
+	- Parse the GET request, get the auctioneerID and itemID
+	- Parse the Blockchain into a mpt with timestamp list, find the ItemData using the same method Bidder Function 3 do.
+	- Find out the frist transaction that provide highest price before end time, then compare to the Result in the auction
+	- If they are the same return valid to user, otherwise return not valid and expected valid bid to user.
+
+### Miner
+1. Creat block based on provided price of bidder.
+	- Parse the heartbeat send by bidder.
+	- If this heartbeat contain new bid, parse it and add its own miner ID into mpt
+	- Then start trying nonce to add this block to blockchain
+
 ### Each Node
 - Receive the bid send by Bidder, and Forward to others in its Peerlist.
 
@@ -121,3 +169,9 @@ type ItemData struct {
 1. After the server start, it would create corresponding auctioneer and bidder instance based on Port Number and IP address.
 2. Alter HeartBeatData to support BidDetail.
 3. Alter ForwardHeartBeat and ReceiveHeartBeat to support BidDetail.
+4. Add canonical method to parse the mpt with according timestamp in a datastruct that used for parsing the blockchain.
+5. Alter StartTryingNonce to support custom mpt.
+
+## Result
+**All Functionality are finished**
+### Demo Link:
